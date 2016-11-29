@@ -63,7 +63,7 @@ log_level = logging.INFO
 #log_level = logging.DEBUG      # DEBUG is quite verbose
 
 # How long to sleep between processing the spool directory
-sleep_time = 15
+sleep_time = 5
 
 # when we can't connect to carbon, the sleeptime is doubled until we hit max
 sleep_max = 480
@@ -176,6 +176,7 @@ def convert_pickle(carbon_list):
     pickle_list = []
     for metric in carbon_list:
         path, value, timestamp = metric.strip().rsplit(' ', 2)
+	path = path.replace("'", "")
         path = re.sub(r"\s+", replacement_character, path)
         metric_tuple = (path, (timestamp, value))
         pickle_list.append(metric_tuple)
@@ -183,7 +184,8 @@ def convert_pickle(carbon_list):
         payload = pickle.dumps(pickle_list_chunk)
         header = struct.pack("!L", len(payload))
         message = header + payload
-    return message
+        messages.append(message)
+    return messages
 
 
 def chunks(l, n):
@@ -464,6 +466,13 @@ def process_spool_dir(directory):
     log.debug("Processing spool directory %s", directory)
     num_files = 0
     perfdata_files = os.listdir(directory)
+
+    last_dir = os.getcwd()
+    os.chdir(directory)
+    perfdata_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+    del perfdata_files[6:]
+    os.chdir(last_dir)
+
     for perfdata_file in perfdata_files:
         if (
             perfdata_file == "host-perfdata" or
